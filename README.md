@@ -1274,3 +1274,223 @@ MODULE user_command_0400 INPUT.
 
 
 ENDMODULE.
+**************************************************************************************************************************
+AMDP code is as below
+CLASS zfi_amdp_get_ap_jv_park_data DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC .
+
+  PUBLIC SECTION.
+    INTERFACES if_amdp_marker_hdb.
+
+    TYPES:
+****new structure with simulation related fields******
+      BEGIN OF ty_sd_fi,
+
+*---------------- Header (VBKPF) ----------------*
+        belnr     TYPE belnr_d,
+        gjahr     TYPE gjahr,
+        bukrs     TYPE bukrs,
+        blart     TYPE blart,
+        bldat     TYPE bldat,
+        budat     TYPE budat,
+        xblnr     TYPE xblnr1,
+        bktxt     TYPE bktxt,
+        waers     TYPE waers,
+        usnam     TYPE usnm_vbkpf,
+
+*---------------- Common item ----------------*
+        buzei     TYPE buzei,
+        bschl     TYPE bschl,
+        shkzg     TYPE shkzg,
+        gsber     TYPE gsber,
+        dmbtr     TYPE dmbtr,
+        mwskz     TYPE mwskz,
+
+*---------------- GL fields (VBSEGS) ----------------*
+        saknr     TYPE saknr,
+        txt20     TYPE txt20_skat,
+        kostl     TYPE kostl,
+        prctr     TYPE prctr,
+
+*---------------- Vendor fields (VBSEGK) ----------------*
+        lifnr     TYPE lifnr,
+        umskz     TYPE umskz,
+        zfbdt     TYPE dzfbdt,
+        zuonr     TYPE dzuonr,
+        bupla     TYPE bupla,
+        secco     TYPE secco,
+        sgtxt     TYPE sgtxt,
+
+*---------------- Customer fields (VBSEGD) ----------------*
+        kunnr     TYPE kunnr,
+
+*---------------- Tax technical (VBSET) ----------------*
+        txjcd     TYPE txjcd,
+        kschl     TYPE kschl,
+        ktosl     TYPE ktosl,
+
+*---------------- Withholding tax (WITH_ITEM) ----------------*
+        witht     TYPE witht,
+        wt_withcd TYPE wt_withcd,
+        wt_qsshb  TYPE wt_bs1,
+
+*---------------- Statutory ----------------*
+        hsn_sac   TYPE j_1ig_hsn_sac,
+
+*---------------- Source identifier ----------------*
+        src_tab   TYPE char10,   "VBSEGS / VBSEGK / VBSEGD
+
+      END OF ty_sd_fi,
+
+      tt_sd_fi TYPE STANDARD TABLE OF ty_sd_fi,
+      budat_tt TYPE RANGE OF budat,
+      blart_tt TYPE RANGE OF blart,
+      usnam_tt TYPE RANGE OF usnam.
+
+
+    CLASS-METHODS get_ap_jv_park_data
+      IMPORTING VALUE(im_bukrs) TYPE bukrs
+*                VALUE(it_budat) TYPE budat_tt
+*                VALUE(it_blart) TYPE blart_tt
+*                VALUE(im_user)  TYPE usnam
+                VALUE(lv_where) TYPE string
+                VALUE(im_langu) TYPE spras
+      EXPORTING
+                VALUE(et_sd_fi) TYPE tt_sd_fi.
+
+  PROTECTED SECTION.
+  PRIVATE SECTION.
+ENDCLASS.
+
+
+
+CLASS zfi_amdp_get_ap_jv_park_data IMPLEMENTATION.
+
+  METHOD get_ap_jv_park_data
+                       BY DATABASE PROCEDURE FOR HDB
+                       LANGUAGE SQLSCRIPT
+                       OPTIONS READ-ONLY
+                       USING vbkpf vbsegs vbsegk vbsegd bset with_item skat.
+*updated AMDP for Simulation*****
+
+
+    lt_base =
+      SELECT
+        h.belnr,
+        h.gjahr,
+        h.bukrs,
+        h.blart,
+        h.bldat,
+        h.budat,
+        h.xblnr,
+        h.bktxt,
+        h.waers,
+        h.usnam,
+
+        x.buzei,
+        x.bschl,
+        x.shkzg,
+        x.gsber,
+        x.dmbtr,
+        x.mwskz,
+
+        x.saknr,
+        s.txt20,
+        x.kostl,
+        x.prctr,
+
+        x.lifnr,
+        x.umskz,
+        x.zfbdt,
+        x.zuonr,
+        x.bupla,
+        x.secco,
+        x.sgtxt,
+
+        x.kunnr,
+
+        t.txjcd,
+        t.kschl,
+        t.ktosl,
+
+        w.witht,
+        w.wt_withcd,
+        w.wt_qsshb,
+
+        x.hsn_sac,
+        x.src_tab
+
+      FROM vbkpf h
+
+      INNER JOIN (
+
+        SELECT
+          bukrs, belnr, gjahr, buzei, bschl, shkzg, gsber, mwskz, dmbtr, hsn_sac,
+          saknr , kostl, prctr,
+          ''  AS lifnr, '' AS umskz, '00000000' AS zfbdt, '' AS zuonr,
+          ''  AS bupla, '' AS secco, sgtxt,
+          ''  AS kunnr,
+          'VBSEGS' AS src_tab
+        FROM vbsegs
+
+        UNION ALL
+
+        SELECT
+          bukrs, belnr, gjahr, buzei, bschl, shkzg, gsber, mwskz, dmbtr, hsn_sac,
+          saknr, '' AS kostl, '' AS prctr,
+          lifnr, umskz, zfbdt, zuonr,
+          bupla, secco, sgtxt,
+          '' AS kunnr,
+          'VBSEGK' AS src_tab
+        FROM vbsegk
+
+        UNION ALL
+
+        SELECT
+          bukrs, belnr, gjahr, buzei, bschl, shkzg, gsber, mwskz, dmbtr, hsn_sac,
+          '' AS hkont, '' AS kostl, '' AS prctr,
+          '' AS lifnr, umskz, zfbdt, zuonr,
+          bupla, secco, sgtxt,
+          kunnr,
+          'VBSEGD' AS src_tab
+        FROM vbsegd
+
+      ) x
+        ON h.bukrs = x.bukrs
+       AND h.belnr = x.belnr
+       AND h.gjahr = x.gjahr
+
+      LEFT JOIN bset t
+        ON x.bukrs = t.bukrs
+       AND x.belnr = t.belnr
+       AND x.gjahr = t.gjahr
+       AND x.buzei = t.buzei
+
+      LEFT JOIN with_item w
+        ON x.bukrs = w.bukrs
+       AND x.belnr = w.belnr
+       AND x.gjahr = w.gjahr
+       AND x.buzei = w.buzei
+
+  LEFT JOIN skat s
+    ON s.saknr = x.saknr
+   AND s.ktopl = :im_bukrs
+   AND s.spras = :im_langu
+
+
+      WHERE h.bukrs = :im_bukrs
+/*        AND h.usnam = :im_user    */
+        and x.hsn_sac = ' ';
+
+*--------------------------------------------------------------------*
+* Apply dynamic selection screen filters safely
+*--------------------------------------------------------------------*
+    IF :lv_where IS NOT NULL AND LENGTH(:lv_where) > 0 THEN
+       et_sd_fi = APPLY_FILTER(:lt_base, :lv_where);
+    END IF;
+
+  ENDMETHOD.
+
+ENDCLASS.
