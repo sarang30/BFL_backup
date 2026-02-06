@@ -1,4 +1,4 @@
-# BFL_backup
+
 Main program 
 *&---------------------------------------------------------------------*
 *& Report zfi_bafl_post_ap_jv
@@ -1132,3 +1132,145 @@ START-OF-SELECTION.
   INCLUDE zfi_post_ap_jv_status_0100o01.
 
   INCLUDE zfi_post_ap_jv_user_commandi01.
+*********************************************************************************************************************************************************
+*----------------------------------------------------------------------*
+***INCLUDE ZFI_POST_AP_JV_STATUS_0100O01.
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*& Module STATUS_0100 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+* SET PF-STATUS 'SALV'.
+* SET TITLEBAR 'xxx'.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*& Module STATUS_0300 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE status_0300 OUTPUT.
+* SET PF-STATUS 'xxxxxxxx'.
+* SET TITLEBAR 'xxx'.
+
+  SET PF-STATUS 'PF_POST_300'.
+
+*  IF go_msg_cont IS INITIAL.
+*    CREATE OBJECT go_msg_cont
+*      EXPORTING
+*        container_name = 'CC_POST_MSG'.
+*  ENDIF.
+*
+*
+*    TRY.
+*        cl_salv_table=>factory(
+*          EXPORTING
+*            r_container = go_msg_cont
+*          IMPORTING
+*            r_salv_table = go_msg_salv
+*          CHANGING
+*            t_table      = gt_msg_tab
+*        ).
+*
+*        go_msg_salv->get_columns( )->set_optimize( abap_true ).
+*        go_msg_salv->get_functions( )->set_all( abap_true ).
+*        go_msg_salv->get_display_settings( )->set_list_header(
+*          'Posting Result'
+*        ).
+*
+*
+*
+*    CATCH cx_salv_msg.
+*  ENDTRY.
+
+
+
+
+
+
+
+
+
+
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*& Module STATUS_0400 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE status_0400 OUTPUT.
+  SET PF-STATUS 'PF_POST_400'.
+
+*Set event handler.
+  DATA(lo_event_handler) = CAST lcl_event_handler( go_event_handler ).
+  SET HANDLER lo_event_handler->on_user_command FOR gr_simu_post_salv->get_event( ).
+ENDMODULE.
+*********************************************************************************************************************************************************
+*----------------------------------------------------------------------*
+***INCLUDE ZFI_POST_AP_JV_USER_COMMANDI01.
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+
+  CASE sy-ucomm.
+    WHEN 'BACK' OR  '%EX'.
+      LEAVE TO SCREEN 0.
+    WHEN 'RW'.
+      LEAVE PROGRAM.
+  ENDCASE.
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0300  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0300 INPUT.
+  CASE sy-ucomm.
+    WHEN 'BACK' OR  '%EX'.
+      LEAVE TO SCREEN 0.
+    WHEN 'RW' or 'EXIT'.
+      LEAVE PROGRAM.
+  ENDCASE.
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0400  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0400 INPUT.
+
+
+  CASE sy-ucomm.
+    WHEN 'BACK' OR  '%EX'.
+      LEAVE TO SCREEN 0.
+    WHEN 'RW' or 'EXIT'.
+      LEAVE PROGRAM.
+    WHEN 'POST'.
+
+**downcast global object to access internal table.
+      DATA(lo_post_jv1) = CAST lcl_post_jv( go_post_jv ).
+
+*get selected rows.
+      DATA(lt_selected) = gr_salv->get_selections( )->get_selected_rows( ).
+      IF lt_selected IS INITIAL.
+        MESSAGE 'Please select at least one document' TYPE 'I'.
+        RETURN.
+      ENDIF.
+
+*Post the selected records.
+      lo_post_jv->post( it_selected = lt_selected ).
+
+  ENDCASE.
+
+
+
+
+ENDMODULE.
